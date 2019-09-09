@@ -1,0 +1,142 @@
+import numpy as np 
+import tensorflow as tf
+from tensorflow import keras 
+import matplotlib.pyplot as plt
+from keras import optimizers
+from keras import Sequential,layers
+from keras.layers import Conv2D,MaxPool2D,Dense,Flatten,Dropout,Activation,Embedding,Conv1D,GlobalMaxPool1D
+import pandas as pd 
+from keras import backend as K
+import sklearn
+from sklearn import model_selection
+
+from google.colab import drive 
+drive.mount('/content/gdrive')
+
+
+import pandas as pd 
+data=pd.read_csv('gdrive/My Drive/Colab Notebooks/1429_1.csv')
+
+data= data[data["reviews.rating"].notnull()]
+data= data[data["reviews.title"].notnull()]
+data2=data[data['reviews.rating']<4]
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data=data.append(data2)
+data_in=data['reviews.title']
+data_out=data['reviews.rating']
+data_out=data_out>=4
+
+
+data2_in=data_in.copy()
+
+words={}
+
+def word_finder(x):
+  
+  if len(x)!=0:
+    global j
+    global i
+    i=0
+    while i <len(x):
+      if x[i]==' ':
+        i=i+1
+      else :
+      
+        j=i+1
+        while j<len(x) and x[j]!=' ' and x[j]!='.' and x[j]!=',' and x[j]!='!':
+          j=j+1
+        if not x[i:j] in words:
+          words[x[i:j]]=len(words)+1
+        i=j
+        
+import json
+json_string = json.dumps(words)
+with open('words.txt', 'w') as outfile:  
+    json.dump(words, outfile)
+with open('words.txt') as json_file:  
+    words = json.load(json_file)
+    
+    
+def word_changer(x,xx):
+  global s
+  s=0
+  k=np.zeros(50)
+  if len(x)!=0:
+    global j
+    global i
+    i=0
+    while i <len(x):
+      if x[i]==' ':
+        i=i+1
+      else :
+      
+        j=i+1
+        while j<len(x) and x[j]!=' ' and x[j]!='.' and x[j]!=',' and x[j]!='!':
+          j=j+1
+        k[s]=words[x[i:j]]
+        s=s+1
+        i=j
+    data2_in.iloc[xx]=k
+
+for i in range(len(data_in)):
+  word_finder(data_in.iloc[i])
+
+for i in range(len(data_in)):
+  if i%100==0:
+      print (i)
+  word_changer(data_in.iloc[i],i)
+
+
+data2_in = keras.preprocessing.sequence.pad_sequences(data2_in,
+                                                        
+                                                        padding='post',
+                                                        maxlen=50)
+                            
+  
+data2_in,v_in,data_out,v_out=sklearn.model_selection.train_test_split(data2_in,data_out,test_size=0.25)
+
+
+model=Sequential()
+model.add(Embedding(len(words)+1,100))
+model.add(Conv1D(64,kernel_size=3))
+model.add(Activation('relu'))
+model.add(Conv1D(32,kernel_size=3))
+model.add(Activation('relu'))
+model.add(Conv1D(16,kernel_size=3))
+model.add(Activation('relu'))
+model.add(GlobalMaxPool1D())
+model.add(Dense(12))
+model.add(Activation('relu'))
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+
+
+sgd=optimizers.SGD(lr=0.1,momentum=0.5,decay=1e-6)
+model.compile(optimizer=sgd,loss='binary_crossentropy',
+              metrics=['accuracy'])
+        
+        
+checkpoint_path = "project3.ckpt"
+cp_callback = tf.keras.callbacks.ModelCheckpoint(
+    checkpoint_path, verbose=1, save_weights_only=False,
+    period=1,save_best_only=True)
+
+
+h1=model.fit(data2_in, data_out,validation_data=(v_in,v_out), epochs=10,batch_size=500,callbacks=[cp_callback])
+
+
+
+model.load_weights(checkpoint_path)
+
